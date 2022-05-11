@@ -9,60 +9,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.preprocessing import LabelEncoder
 from skimage.feature import hog
-from skimage.transform import rotate
-import glob
 import numpy as np
 import cv2
 from matplotlib import cm
-import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.colors import ListedColormap
-import os
-from pathlib import Path
-
-############################################
-
-def get_list_of_images_from_dirs(list_of_dirs):
-    '''
-    A function to get a single list of files from multiple directories or single directory.
-    Should be list of strings or string
-    '''
-
-    # if single directory is given as a string, and not a list, convert to list
-    if not isinstance(list_of_dirs, list):
-        list_of_dirs = [list_of_dirs]
-
-    image_list = []
-
-    # loop over list of directories
-    for dir in list_of_dirs:
-        images = glob.glob(f'{dir}*.JPG')
-        image_list.extend(images)
-
-    return image_list
-
-############################################
-
-def save_list_of_images(images, outdir, basename=None):
-    '''
-    A function to save out a list of images with sequential numbering.
-    If a basename is not specified, image will be used
-    '''
-
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-    
-    if basename is None:
-        for i, image in zip(range(len(images)), images):
-            cv2.imwrite(f'{outdir}/image_{i+1}.JPG', image)
-    elif isinstance(basename, str):
-        for i, image in zip(range(len(images)), images):
-            cv2.imwrite(f'{outdir}/{basename}_{i+1}.JPG', image)
-    elif isinstance(basename, list):
-        for i, image, base in zip(range(len(images)), images, basename):
-            cv2.imwrite(f'{outdir}/{base}_{i+1}.JPG', image)
-    else:
-        print('Please provide correct format for basename')
+from data_manipulation_fns import convert_point_to_bbox
 
 ############################################
 
@@ -243,20 +195,6 @@ def do_nms(points, probabilities, box_size, iou_threshold=0.2):
     
 ############################################
 
-def convert_point_to_bbox(point, box_size):
-    '''
-    A function to convert a point to a list containing bbox parameters: [x0, y0, x0+h, x0+w]
-
-    box_size should be a tuple or list of length two of form (x, y) = (h, w)
-    '''
-
-    point.append(point[0]+box_size[0])
-    point.append(point[1]+box_size[1])
-    
-    return point
-
-############################################
-
 def get_prob_quartiles(probabilities):
     '''
     A function to get quartile values of proability distribution in a torch tensor of values.
@@ -266,7 +204,6 @@ def get_prob_quartiles(probabilities):
     '''
     q = torch.tensor([0, 0.25, 0.5, 0.75, 1], dtype=probabilities.dtype)
     return torch.quantile(probabilities, q)
-    #return np.linspace(torch.min(probabilities), torch.max(probabilities), 5)
 
 ############################################
 

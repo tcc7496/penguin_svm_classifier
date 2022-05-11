@@ -5,18 +5,19 @@ import click
 import joblib
 import os
 from pathlib import Path
-#from pathlib import PurePath
 import ast
 import pandas as pd
 from hog_functions import extract_hog_fd_sliding_window, svm_model_predict_on_hog_fd, get_positive_preds_and_labels, do_nms, get_prob_quartiles, get_quartile_cmap, plot_image
+
+############################################
 
 @click.command()
 @click.argument('image', type=click.Path(exists=True))
 @click.argument('model', type=click.Path(exists=True))
 @click.argument('hog_parameters', type=click.Path(exists=True))
 @click.argument('outputdir', type=click.Path())
-@click.option('-sz', '--window_size', type=int, default=24, help='')
-@click.option('-st', '--window_step', type=int, default=6, help='')
+@click.option('-sz', '--window_size', type=int, default=24, help='Window size over which to calculate hog in image.')
+@click.option('-st', '--window_step', type=int, default=6, help='Step size to move window oer image between hog calculations.')
 @click.option('-iou', '--iou_threshold', type=float, default=0.2, help='Intersection over union threshold to use when performing non-max suppression.')
 def main(image, model, hog_parameters, outputdir, window_size, window_step, iou_threshold):
     '''
@@ -107,6 +108,7 @@ def main(image, model, hog_parameters, outputdir, window_size, window_step, iou_
 
     plt.savefig(f'{outputdir}/{image_name}_{model_name}_bboxes.jpg', dpi=300)
 
+############################################
 
 if __name__ == "__main__":
     '''
