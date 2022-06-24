@@ -104,7 +104,7 @@ def main(image, model, hog_parameters, outputdir, window_size, window_step, iou_
 
     plot_image(ax=ax1, image=img_pred, title='Prediction Image', display_bounds=display_bounds)
     plot_image(ax=ax2, image=img_pred, boxes=boxes, title='Before NMS', display_bounds=display_bounds)
-    plot_image(ax=ax3, image=img_pred, boxes=boxes_nms, title='After NMS', colour_map=cm_quartiles, display_bounds=display_bounds)
+    plot_image(ax=ax3, image=img_pred, boxes=boxes_nms, title='After NMS', colour_map=cm_quartiles, display_bounds=display_bounds, idx_labels=True)
 
     plt.savefig(f'{outputdir}/{image_name}_{model_name}_bboxes.jpg', dpi=300)
 
