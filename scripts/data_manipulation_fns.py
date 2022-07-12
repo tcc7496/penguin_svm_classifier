@@ -2,8 +2,8 @@
 
 import numpy as np
 import pandas as pd
-from skimage.transform import rotate
 import matplotlib.pyplot as plt
+from skimage.transform import rotate
 import os
 import cv2
 from pathlib import Path
@@ -11,8 +11,10 @@ from data_read_and_write_fns import get_list_of_images_from_dirs, save_list_of_i
 
 ############################################
 
-def augment_seq_process(image_dir, outputdir=None, angles=[0, 90, 180, 270], show_sample=False):
+def augment_seq_process(image_dir, outputdir=None, angles=[0, 90, 180, 270], show_sample=False, numbering=False):
     '''
+    !!!! The rotate() in this function still needs to be switched over to cv2 method instead of skimage !!!!
+
     A function to augment dataset and train svm using only augmentated images.
     Original data will be randomly flipped or not, and then randomly rotated.
     The augmentation is done sequentially such that the output of the flipping
@@ -25,7 +27,8 @@ def augment_seq_process(image_dir, outputdir=None, angles=[0, 90, 180, 270], sho
     img_path_list = get_list_of_images_from_dirs(image_dir)
     
     # make array of images
-    orig_imgs = np.array([np.asarray(cv2.imread(img)) for img in img_path_list])
+    # think this is causing issues when the second dimensions don't match. Only needed for plotting so comment out atm.
+    # orig_imgs = np.array([np.asarray(cv2.imread(img)) for img in img_path_list])
 
     # decide randomly whether to flip images and which flip to do
     flipped = [cv2.flip(img, np.random.choice([0, 1, -1])) if np.random.choice([0, 1]) else img for img in orig_imgs]
@@ -46,6 +49,8 @@ def augment_seq_process(image_dir, outputdir=None, angles=[0, 90, 180, 270], sho
     # save images out
     save_list_of_images(rotated, outputdir, basename=img_name_list)
 
+    """
+    Commenting out for now because need orig_imgs object which is causing issues.
     if show_sample is True:
         plt.figure(figsize=(9,9))
         i = 0
@@ -58,10 +63,11 @@ def augment_seq_process(image_dir, outputdir=None, angles=[0, 90, 180, 270], sho
             i += 1
         plt.suptitle("Sample after augmentation", fontsize=20)
         plt.show()
+    """
 
 ############################################
 
-def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], show_sample=False):
+def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], show_sample=False, numbering=False):
     '''
     A function that takes a directory or images and randomly decides whether to rotate or flip them,
     and then randomly assigns the flip or rotation.
@@ -72,9 +78,12 @@ def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], sho
 
     # get list of images
     img_path_list = get_list_of_images_from_dirs(image_dir)
+    print('No. of images to augment:', len(img_path_list))
 
     # make array of images
-    orig_imgs = np.array([np.asarray(cv2.imread(img)) for img in img_path_list])
+    # think this is causing issues when the second dimensions don't match. Only needed for plotting so comment out atm.
+    # orig_imgs = np.array([np.asarray(cv2.imread(img), dtype=object) for img in img_path_list])
+    
 
     augmented = []
     # loop over image files
@@ -85,6 +94,7 @@ def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], sho
         #ax1.imshow(img)
         # choose randomly whether to flip or rotate image
         j = np.random.choice([0, 1])
+
         # flip image if j=0
         if j == 0:
             augment = cv2.flip(img, np.random.choice([0, 1, -1]))
@@ -92,12 +102,21 @@ def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], sho
             #ax2.imshow(augment)
         # rotate image if j=1
         if j == 1:
-            augment = rotate(img, angle=np.random.choice(angles), mode='wrap')
+            angle = np.random.choice(angles)
+            if angle == 90:
+                augment = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            elif angle == 180:
+                augment = cv2.rotate(img, cv2.ROTATE_180)
+            elif angle == 270:
+                augment = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            else:
+                print('Please choose an angle from [90, 180, 270].')
+            #augment = rotate(img, angle=np.random.choice(angles), mode='wrap')
             augmented.append(augment)
             #ax2.imshow(augment)
         
         #plt.show()
-
+    
     # create output directory if none given
     if outputdir is None:
         outputdir = f'{image_dir}/augmented_each_img_sep/'
@@ -105,12 +124,14 @@ def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], sho
     if not os.path.exists(outputdir):
         os.mkdir(outputdir)
 
-    # cretae list of image names to use as basenames in save_list_of_images
-    img_name_list = [str(Path(image).stem) for image in img_path_list]
+    # create list of image names to use as basenames in save_list_of_images
+    img_name_list = [f'{str(Path(image).stem)}_aug' for image in img_path_list]
     
     # save images out
-    save_list_of_images(augmented, outputdir, basename=img_name_list)
+    save_list_of_images(augmented, outputdir, basename=img_name_list, numbering=numbering)
 
+    """
+    Commenting out for now because need orig_imgs object which is causing issues.
     if show_sample is True:
         plt.figure(figsize=(9,9))
         i = 0
@@ -123,6 +144,7 @@ def augment_each_image_sep(image_dir, outputdir=None, angles=[90, 180, 270], sho
             i += 1
         plt.suptitle("Sample after augmentation", fontsize=20)
         plt.show()
+    """
 
 ############################################
 
@@ -231,7 +253,7 @@ def get_thumbnails_from_image_labels(image, labels, definite=True):
 
 ############################################
 
-def get_thumbnails_around_centroid_from_image_labels(image, labels, dims, definite=True):
+def get_thumbnails_around_centroid_from_image_labels(image, labels, dims, definite=True, include_edge_cases=True):
     '''
     A function to get thumbnails of standardised size around centroids of labelled objects
     in a larger image.
@@ -240,6 +262,8 @@ def get_thumbnails_around_centroid_from_image_labels(image, labels, dims, defini
     labels: yolo label format file
     dims: tuple in form (w, h) where w and h are integers
     definite: If True, will filter for labels only in class 0 which correspond to a definite adult king penguin 
+    include_edge_cases: If True will include labelled features at edges which will be smaller than the dims
+    specified when trimmed to fit inside the image.
     
     '''
 
@@ -268,10 +292,28 @@ def get_thumbnails_around_centroid_from_image_labels(image, labels, dims, defini
 
         # get width and height
         h, w = int(dims[1]), int(dims[0])
+        print('(h, w)', h, w)
 
         # loops over lists of centroids
         for x, y in zip(xc, yc):
-            sample = img[(x-h//2):(x+h//2+1), (y-w//2):(y+w//2+1)]
+            print('(x, y)', x, y)
+            print('(x-h, y-w)', x-h//2, y-w//2)
+            
+            if (x < h//2 or y < w//2) and include_edge_cases is False:
+                print('Skipping this label because we dont want edge cases here.')
+                continue
+
+            if x < h//2:
+                x = h//2
+
+            if y < w//2:
+                y = w//2
+  
+            
+            print('(x, y)', x, y)
+            print('next')
+            sample = img[(x-h//2):(x+h//2), (y-w//2):(y+w//2)]
+
             samples.append(sample)
 
         return samples, basename
@@ -281,3 +323,9 @@ def get_thumbnails_around_centroid_from_image_labels(image, labels, dims, defini
 if __name__ == "__main__":
     '''
     '''
+    img_dir = '/Users/taracunningham/projects/PhD/data/King_Penguin_Surveys/St_Andrews_Bay/210216_00668_200-200/210216_00668_200-200_1-15'
+
+    outdir = '/Users/taracunningham/projects/PhD/data/King_Penguin_Surveys/St_Andrews_Bay/210216_00668_200-200/210216_00668_200-200_1-25to1-25_thumbs_augmented'
+
+    augment_each_image_sep(img_dir, outputdir=outdir, angles=[90, 180, 270], show_sample=False, numbering=False)
+
