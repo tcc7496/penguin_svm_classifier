@@ -18,7 +18,7 @@ from data_manipulation_fns import convert_point_to_bbox
 
 ############################################
 
-def create_hog_features_and_labels(pos_img_list, neg_img_list, hog_parameters, normalize=False):
+def create_hog_features_and_labels(pos_img_list, neg_img_list, hog_parameters, img_dims, normalize=False):
     '''
     A function to extract hog features and correspoinding labels for a list of images.
     Labels: Neg = 0, Pos = 1
@@ -38,9 +38,15 @@ def create_hog_features_and_labels(pos_img_list, neg_img_list, hog_parameters, n
     # positive images
     for file in pos_img_list: #this loop enables reading the files in the pos_im_listing variable one by one
         img = cv2.imread(f'{file}') # open the file
+        # print(f'{file}')
+        if (img.shape[0] is not img_dims[0]) or img.shape[1] is not img_dims[1]:
+            print(f'Not using image for training. Image dimensions are: {img.shape[0:2]} instead of {img_dims}.')
+            continue
+
         #img = img.resize((64,128))
         # calculate HOG for positive features
         fd = hog(img, orientations, pixels_per_cell, cells_per_block, transform_sqrt=normalize, channel_axis=-1, block_norm='L2')
+        # print('feature descriptor shape', fd.shape)
         hog_features.append(fd)
         hog_labels.append(1)
         
@@ -212,6 +218,8 @@ def get_quartile_cmap(quartiles, tensor, color_map='viridis'):
     A function to create colour map for a tensor from quartile values of that tensor
     such that each quartile is assigned a different colour.
 
+    tensor can be any interable object such as dataframe column, list, or tensor.
+
     Returns a ListedColormap the same length as as tensor.
     '''
 
@@ -239,6 +247,8 @@ def plot_image(ax, image, boxes=None, display_bounds=None, colour_map=None, titl
     A function that plots the original image, the model predictions before nms, and the model predictions after nms.
     The predicted bounding boxes are divided into quartiles with confidence of prediction.
 
+    boxes is the dataframe containing bounding boxes with columns [xmin, ymin, xmax, ymax, prob]
+
     display_bounds: list [xmin, ymin, xmax, ymax] to crop the display to. If None, displays whole image
     '''
 
@@ -252,17 +262,17 @@ def plot_image(ax, image, boxes=None, display_bounds=None, colour_map=None, titl
     ax.set_title(title, fontsize=18)
 
     if boxes is not None:
-        # if colour map isn't specified, create listed colour map of same colour the same length as tesnor boxes
+        # if colour map isn't specified, create listed colour map of same colour the same length as number of boxes = number of rows in boxes dataframe
         if colour_map is None:
-            colour_map = ListedColormap(['red' for box in boxes])
-        for i, box in enumerate(boxes):
-            if box[0] > ymin and box[1] > xmin and box[2] < ymax and box[3] < xmax:
-                ax.add_patch(Rectangle(((box[0]-ymin, box[1]-xmin)), (box[2]-box[0]), (box[3]-box[1]),
+            colour_map = ListedColormap(['red' for box in boxes['xmin']])
+        for i in range(boxes.shape[0]):
+            if boxes.loc[i, 'ymin'] > ymin and boxes.loc[i, 'xmin'] > xmin and boxes.loc[i, 'ymax'] < ymax and boxes.loc[i, 'xmax'] < xmax:
+                ax.add_patch(Rectangle(((boxes.loc[i, 'ymin']-ymin, boxes.loc[i, 'xmin']-xmin)), (boxes.loc[i, 'ymax']-boxes.loc[i, 'ymin']), (boxes.loc[i, 'xmax']-boxes.loc[i, 'xmin']),
                             edgecolor=colour_map.colors[i],
                             facecolor='none',
                             lw=1))
                 if idx_labels is True:
-                    ax.text((box[0]-ymin), (box[1]-xmin+24),
+                    ax.text((boxes.loc[i, 'ymin']-ymin), (boxes.loc[i, 'xmin']-xmin+24),
                                 s = f'{i}',
                                 color='white',
                                 fontsize=12) 
